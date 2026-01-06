@@ -63,6 +63,9 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   if (metadata?.userID !== userID) {
     throw new UserForbiddenError("You do not have permission to upload a thumbnail for this video");
   }
+  videoThumbnails.set(videoId,{data: imageData, mediaType: mediaType});
 
+  const thumbnailURL = `http://localhost:${cfg.port}/api/thumbnails/:${videoId}`;
+  
   return respondWithJSON(200, null);
 }
