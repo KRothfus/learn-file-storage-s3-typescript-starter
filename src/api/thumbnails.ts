@@ -3,7 +3,7 @@ import { respondWithJSON } from "./json";
 import { getVideo } from "../db/videos";
 import type { ApiConfig } from "../config";
 import type { BunRequest } from "bun";
-import { BadRequestError, NotFoundError } from "./errors";
+import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 
 type Thumbnail = {
   data: ArrayBuffer;
@@ -48,6 +48,21 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   console.log("uploading thumbnail for video", videoId, "by user", userID);
 
   // TODO: implement the upload here
+  const formData = await req.formData();
+  const file = formData.get("thumbnail");
+  if (!(file instanceof File)) {
+    throw new BadRequestError("No thumbnail file provided");
+  }
+  
+  if (file.size > 10 << 20) { // 10MB limit
+    throw new BadRequestError("Thumbnail file size exceeds 10MB limit");
+  }
+  const mediaType = file.type;
+  const imageData = await file.arrayBuffer();
+  const metadata = getVideo(cfg.db, videoId);
+  if (metadata?.userID !== userID) {
+    throw new UserForbiddenError("You do not have permission to upload a thumbnail for this video");
+  }
 
   return respondWithJSON(200, null);
 }
