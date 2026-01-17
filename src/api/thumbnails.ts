@@ -6,6 +6,7 @@ import type { BunRequest } from "bun";
 import { BadRequestError, NotFoundError, UserForbiddenError } from "./errors";
 import { Buffer } from "buffer";
 import path from "path";
+import { randomBytes } from "crypto";
 
 export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   const { videoId } = req.params as { videoId?: string };
@@ -27,8 +28,8 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
   if (
     file.type.split("/")[1].includes("jpeg") ||
     file.type.split("/")[1].includes("png")
-  ) {}
-  else {
+  ) {
+  } else {
     throw new BadRequestError(
       `Invalid thumbnail file type. Only JPEG and PNG are allowed. ${
         file.type.split("/")[1]
@@ -48,11 +49,15 @@ export async function handlerUploadThumbnail(cfg: ApiConfig, req: BunRequest) {
     );
   }
 
-  const fileh = `/assets/${videoId}.${file.type.split("/")[1]}`;
-  const pathURL = path.join(cfg.assetsRoot, fileh);
+  const ext = mediaType.split("/")[1];
+  const filename = `${randomBytes(32).toString("base64url")}.${ext}`;
+
+  // 1. Save to disk under cfg.assetsRoot
+  const pathURL = path.join(cfg.assetsRoot, filename);
   await Bun.write(pathURL, imageData);
-  // const dataURL = `data:image/png;base64,${imageData}`;
-  const thumbnailURL = `http://localhost:${cfg.port}` + fileh;
+
+  // 2. Expose via URL under /assets
+  const thumbnailURL = `http://localhost:${cfg.port}/assets/${filename}`;
   metadata.thumbnailURL = thumbnailURL;
   updateVideo(cfg.db, metadata);
   return respondWithJSON(200, { metadata });
